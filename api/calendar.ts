@@ -15,8 +15,13 @@ const corsHeaders = {
 
 // --- ICS Generation Helpers ---
 
-const formatICSDate = (d: Date): string => {
+const formatICSDateUTC = (d: Date): string => {
     return d.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+};
+
+const formatICSDateHK = (d: Date): string => {
+    const hkTime = new Date(d.getTime() + (8 * 60 * 60 * 1000));
+    return hkTime.toISOString().replace(/[-:]/g, '').split('.')[0];
 };
 
 const escapeICSValue = (str: string | null | undefined): string => {
@@ -38,9 +43,9 @@ const generateICSFile = (events: any[]): string => {
 
         ics += 'BEGIN:VEVENT\r\n';
         ics += `UID:${event.uid}\r\n`;
-        ics += `DTSTAMP:${formatICSDate(new Date())}\r\n`;
-        ics += `DTSTART:${formatICSDate(start)}\r\n`;
-        ics += `DTEND:${formatICSDate(end)}\r\n`;
+        ics += `DTSTAMP:${formatICSDateUTC(new Date())}\r\n`;
+        ics += `DTSTART;TZID=Asia/Hong_Kong:${formatICSDateHK(start)}\r\n`;
+        ics += `DTEND;TZID=Asia/Hong_Kong:${formatICSDateHK(end)}\r\n`;
         ics += `SUMMARY:${escapeICSValue(event.summary)}\r\n`;
         if (event.location) ics += `LOCATION:${escapeICSValue(event.location)}\r\n`;
         if (event.description) ics += `DESCRIPTION:${escapeICSValue(event.description)}\r\n`;
@@ -195,6 +200,10 @@ export default async function handler(req: Request) {
         } else if (action === 'create') {
             if (!event || !event.summary || !event.start) {
                 throw new Error('Missing event details (summary, start)');
+            }
+
+            if (event.end && new Date(event.end) <= new Date(event.start)) {
+                throw new Error('End time must be after start time');
             }
 
             const newEvent = {

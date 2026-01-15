@@ -61,6 +61,11 @@ const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave, onDele
     const startDate = new Date(start);
     const endDate = new Date(end);
 
+    if (endDate <= startDate) {
+      alert('End time must be after start time');
+      return;
+    }
+
     const event: CalendarEvent = {
       id: initialEvent ? initialEvent.id : crypto.randomUUID(),
       uid: initialEvent ? initialEvent.uid : crypto.randomUUID(),

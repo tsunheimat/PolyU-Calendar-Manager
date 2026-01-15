@@ -7,7 +7,7 @@ interface TrashModalProps {
 }
 
 const TrashModal: React.FC<TrashModalProps> = ({ isOpen, onClose }) => {
-  const { deletedEvents, restoreEvent, restoreEventsBySummary, permanentlyDeleteEvent } = useCalendar();
+  const { deletedEvents, restoreEvent, restoreEventsBySummary, permanentlyDeleteEvent, permanentlyDeleteEventsBySummary } = useCalendar();
 
   if (!isOpen) return null;
 
@@ -57,7 +57,18 @@ const TrashModal: React.FC<TrashModalProps> = ({ isOpen, onClose }) => {
                       className="flex items-center space-x-1 px-3 py-1.5 bg-green-50 text-green-700 rounded hover:bg-green-100 border border-green-200 text-sm font-medium transition-colors"
                       title="Restore All Like This"
                     >
-                      <span className="hidden sm:inline">All</span>
+                      <span className="hidden sm:inline">Rest. All</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (confirm(`Permanently delete ALL deleted events with summary "${event.summary}"? This cannot be undone.`)) {
+                          permanentlyDeleteEventsBySummary(event.summary);
+                        }
+                      }}
+                      className="flex items-center space-x-1 px-3 py-1.5 bg-red-50 text-red-700 rounded hover:bg-red-100 border border-red-200 text-sm font-medium transition-colors"
+                      title="Delete All Like This"
+                    >
+                      <span className="hidden sm:inline">Del. All</span>
                     </button>
                     <button
                       onClick={() => { if (confirm("Permanently delete this event? This cannot be undone.")) permanentlyDeleteEvent(event.id) }}

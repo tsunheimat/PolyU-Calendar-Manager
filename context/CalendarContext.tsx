@@ -27,6 +27,7 @@ interface CalendarContextType {
   calendarFilename: string | null;
   deleteEventsBySummary: (summary: string) => void;
   restoreEventsBySummary: (summary: string) => void;
+  permanentlyDeleteEventsBySummary: (summary: string) => void;
 }
 
 const CalendarContext = createContext<CalendarContextType | undefined>(undefined);
@@ -282,6 +283,27 @@ export const CalendarProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   }, [events, deletedEvents, fetchEvents, user, calendarFilename]);
 
+  const permanentlyDeleteEventsBySummary = useCallback(async (summary: string) => {
+    if (!user) return;
+
+    const eventsToDelete = deletedEvents.filter(e => e.summary === summary);
+    if (eventsToDelete.length === 0) return;
+
+    const newDeletedEvents = deletedEvents.filter(e => e.summary !== summary);
+    setDeletedEvents(newDeletedEvents);
+
+    const { error } = await supabase
+      .from('events')
+      .delete()
+      .eq('summary', summary)
+      .not('deleted_at', 'is', null);
+
+    if (error) {
+      setError("Failed to permanently delete events: " + error.message);
+      fetchEvents();
+    }
+  }, [deletedEvents, fetchEvents, user]);
+
   const permanentlyDeleteEvent = useCallback(async (id: string) => {
     if (!user) return;
     const newDeletedEvents = deletedEvents.filter(e => e.id !== id);
@@ -315,6 +337,34 @@ export const CalendarProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setError(null);
     try {
       const newEventsRaw = parseICSContent(content);
+      if (newEventsRaw.length === 0) {
+        setLoading(false);
+        return;
+      }
+
+      // Calculate the time range of the new ICS (expanded to Mon-Sun)
+      let minTime = newEventsRaw[0].start.getTime();
+      let maxTime = newEventsRaw[0].end.getTime();
+
+      newEventsRaw.forEach(e => {
+        if (e.start.getTime() < minTime) minTime = e.start.getTime();
+        if (e.end.getTime() > maxTime) maxTime = e.end.getTime();
+      });
+
+      // Expand start to previous Monday (00:00:00)
+      const rangeStart = new Date(minTime);
+      const dayStart = rangeStart.getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
+      const diffStart = dayStart === 0 ? 6 : dayStart - 1;
+      rangeStart.setDate(rangeStart.getDate() - diffStart);
+      rangeStart.setHours(0, 0, 0, 0);
+
+      // Expand end to next Sunday (23:59:59)
+      const rangeEnd = new Date(maxTime);
+      const dayEnd = rangeEnd.getDay(); // 0=Sun, ..., 6=Sat
+      const diffEnd = dayEnd === 0 ? 0 : 7 - dayEnd;
+      rangeEnd.setDate(rangeEnd.getDate() + diffEnd);
+      rangeEnd.setHours(23, 59, 59, 999);
+
       const { data: manualData } = await supabase.from('events').select('*').eq('is_manual', true);
       const manualEvents = (manualData || []).map(mapFromDb);
       const manualUids = new Set(manualEvents.map(e => e.uid));
@@ -328,7 +378,11 @@ export const CalendarProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           deleted_at: null
         }));
 
-      await supabase.from('events').delete().eq('is_manual', false);
+      // Delete ONLY events within the calculated range
+      await supabase.from('events').delete()
+        .eq('is_manual', false)
+        .gte('start_time', rangeStart.toISOString())
+        .lte('start_time', rangeEnd.toISOString());
 
       if (dbEventsToInsert.length > 0) {
         await supabase.from('events').insert(dbEventsToInsert);
@@ -484,7 +538,8 @@ export const CalendarProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       clearAll,
       calendarFilename,
       deleteEventsBySummary,
-      restoreEventsBySummary
+      restoreEventsBySummary,
+      permanentlyDeleteEventsBySummary
     }}>
       {children}
     </CalendarContext.Provider>
