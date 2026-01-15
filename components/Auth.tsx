@@ -3,6 +3,8 @@ import React, { useState } from 'react';
 import { supabase } from '../services/supabaseClient';
 import TermsOfServiceModal from './TermsOfServiceModal';
 
+import { GitHubLink } from './GitHubLink';
+
 const Auth: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState('');
@@ -62,7 +64,7 @@ const Auth: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8 bg-white p-8 rounded-xl shadow-lg">
         <div className="text-center">
           <div className="mx-auto h-12 w-12 bg-brand-600 rounded-lg flex items-center justify-center text-white">
@@ -217,6 +219,10 @@ const Auth: React.FC = () => {
             <TermsOfServiceModal isOpen={showTos} onClose={() => setShowTos(false)} />
           </form>
         )}
+      </div>
+
+      <div className="mt-8">
+        <GitHubLink />
       </div>
     </div>
   );
