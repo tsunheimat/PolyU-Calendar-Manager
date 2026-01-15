@@ -1,0 +1,5 @@
+{
+  "name": "PolyU Calendar Manager",
+  "description": "A smart university calendar manager tailored for PolyU students, allowing ICS imports and smart merging.",
+  "requestFramePermissions": []
+}
